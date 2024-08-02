@@ -1,0 +1,67 @@
+[
+    {
+      "value": "beauty",
+      "label": "beauty",
+      "checked": false
+      
+    },
+    {
+      "value": "fragrances",
+      "label": "fragrances",
+      "checked": false
+     
+    },
+    {
+      "value": "furniture",
+      "label": "furniture",
+      "checked": false
+    
+    },
+    {
+      "value": "groceries",
+      "label": "groceries",
+      "checked": false
+    
+    },
+    {
+      "value": "home-decoration",
+      "label": "home decoration",
+      "checked": false
+    
+    },
+    {
+      "value": "kitchen-accessories",
+      "label": "kitchen accessories",
+      "checked": false
+    },
+    {
+      "value": "laptops",
+      "label": "laptops",
+      "checked": false
+      
+    },
+    {
+      "value": "mens-shirts",
+      "label": "mens shirts",
+      "checked": false
+     
+    },
+    {
+      "value": "mens-shoes",
+      "label": "mens shoes",
+      "checked": false
+     
+    },
+    {
+      "value": "mens-watches",
+      "label": "mens watches",
+      "checked": false
+    
+    },
+    {
+      "value": "mobile-accessories",
+      "label": "mobile accessories",
+      "checked": false
+      
+    }
+  ]
