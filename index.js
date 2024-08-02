@@ -11,7 +11,6 @@ const authRouter = require('./routes/Auth');
 const cartRouter = require('./routes/Cart');
 
 
-
 //middlewares
 server.use(cors({ 
     exposedHeaders:['X-Total-Count']}))
