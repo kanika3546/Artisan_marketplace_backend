@@ -1,10 +1,12 @@
+const express = require('express');
+const passport = require('passport');
 const { User } = require('../model/User');
 
 const crypto = require('crypto');
 const { sanitizeUser } = require('../services/common');
-const SECRET_KEY = 'SECRET_KEY';
 const jwt = require('jsonwebtoken');
 
+const SECRET_KEY = 'SECRET_KEY';
 
 exports.createUser = async (req, res) => {
   try {
@@ -19,43 +21,51 @@ exports.createUser = async (req, res) => {
 
         req.login(sanitizeUser(doc), (err) => {
           if (err) {
-            res.status(400).json(err);
+            return res.status(400).json(err);
           } else {
             const token = jwt.sign(sanitizeUser(doc), SECRET_KEY);
-            res.status(201).json(token);
+            res.cookie('jwt', token, {
+              expires: new Date(Date.now() + 3600000),
+              httpOnly: true,
+            });
+            return res.status(201).json({ token });
           }
         });
       } catch (saveErr) {
-        res.status(400).json({ error: saveErr.message });
+        return res.status(400).json({ error: saveErr.message });
       }
     });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: err.message });
   }
 };
 
-//         req.login(sanitizeUser(doc), (err) => {  // this also calls serializer and adds to session
-//           if (err) {
-//             res.status(400).json(err);
-//           } else {
-//             const token = jwt.sign(sanitizeUser(doc), SECRET_KEY);
-//             res.status(201).json(token);
-//           }
-//         });
-//       }
-//     );
-//   } catch (err) {
-//     res.status(400).json(err);
-//   }
-// };
+
+
+// exports.loginUser = async (req, res) => {
+//  res.json({status:'success'});
+//  res
+//  .cookie('jwt', req.user.token, {
+//    expires: new Date(Date.now() + 3600000),
+//    httpOnly: true,
+//  })
+//  .status(201)
+//  .json(req.user.token);
+//  console.log('User:', req.user);
+ 
+//  res.json(req.user);
+//  };
+
 
 
 exports.loginUser = async (req, res) => {
- //res.json({status:'success'});
- console.log('User:', req.user);
- 
- res.json(req.user);
- };
+  res.cookie('jwt', req.user.token, {
+    expires: new Date(Date.now() + 3600000),
+    httpOnly: true,
+  });
+  return res.status(201).json(req.user.token);
+};
 
 exports.checkUser =  (req, res) => {
   res.json({status:'success',user: req.user})};
+
