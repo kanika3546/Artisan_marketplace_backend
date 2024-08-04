@@ -1,9 +1,9 @@
-// const passport = require('passport');
+const passport = require('passport');
 
-// exports.isAuth = (req, res, done) => {
-//   return passport.authenticate('jwt')
-// };
+exports.isAuth = (req, res, next) => {
+  return passport.authenticate('jwt')
+};
 
-// exports.sanitizeUser = (user)=>{
-//     return {id:user.id, role:user.role}
-// }
+exports.sanitizeUser = (user)=>{
+    return {id:user.id, role:user.role}
+}

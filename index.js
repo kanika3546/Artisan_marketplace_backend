@@ -1,52 +1,4 @@
 
-// // server.use('/products', isAuth(), productsRouter.router);
-// // // we can also use JWT token for client-only auth
-// // server.use('/categories', isAuth(), categoriesRouter.router);
-// // server.use('/brands', isAuth(), brandsRouter.router);
-// // server.use('/users', isAuth(), usersRouter.router);
-// // server.use('/auth', authRouter.router);
-// // server.use('/cart', isAuth(), cartRouter.router);
-// // server.use('/orders', isAuth(), ordersRouter.router);
-
-// // Passport Strategies
-// // passport.use(
-// //   'local',
-// //   new LocalStrategy(async function (email, password, done) {
-// //     // by default passport uses username
-// //     try {
-// //       const user = await User.findOne({ email: email}).exec();
-// //       console.log({user});
-// //       if (!user) {
-// //       done(null, false, { message: 'invalid credentials' }); // for safety
-// //       }
-// //     else if (user.password === password) {
-// //         done(null, user); 
-// //     } else{
-// //         done(null, false, { message: 'invalid credentials' });
-// //     }
-   
-// //     } catch (err) {
-// //       done(err);
-// //     }
-// //   })
-// // );
-
-
-// // passport.use('jwt', new JwtStrategy(opts, async function (jwt_payload, done) {
-// //     console.log({ jwt_payload });
-// //     try {
-// //       const user = await User.findOne({ id: jwt_payload.sub });
-// //       if (user) {
-// //         return done(null, sanitizeUser(user)); // this calls serializer
-// //       } else {
-// //         return done(null, false);
-// //       }
-// //     } catch (err) {
-// //       return done(err, false);
-// //     }
-// //   })
-// // );
-
 const express = require('express');
 const server = express();
 const mongoose = require('mongoose');
@@ -69,6 +21,13 @@ const cartRouter = require('./routes/Cart');
 const ordersRouter = require('./routes/Order');
 
 const { User } = require('./model/User');
+const { isAuth, sanitizeUser } = require('./services/common');
+
+const SECRET_KEY = 'SECRET_KEY';
+// JWT options
+const opts = {};
+opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+opts.secretOrKey = SECRET_KEY; // TODO: should not be in code;
 
 //middlewares
 server.use(express.json());
@@ -90,12 +49,12 @@ server.use(passport.initialize());
 server.use(passport.session());
 
 server.use('/products', isAuth(), productsRouter.router);
-server.use('/categories', categoriesRouter.router);
-server.use('/brands', brandsRouter.router);
-server.use('/users', usersRouter.router);
+server.use('/categories', isAuth(), categoriesRouter.router);
+server.use('/brands', isAuth(), brandsRouter.router);
+server.use('/users', isAuth(), usersRouter.router);
 server.use('/auth', authRouter.router);
-server.use('/cart', cartRouter.router);
-server.use('/orders', ordersRouter.router);
+server.use('/cart', isAuth(), cartRouter.router);
+server.use('/orders', isAuth(), ordersRouter.router);
 
 passport.use('local', new LocalStrategy({
     usernameField: 'email',  // Specify the username field
@@ -104,21 +63,40 @@ passport.use('local', new LocalStrategy({
   async function (email, password, done) {
     try {
       const user = await User.findOne({ email: email }).exec();
-      console.log({ user });
+
       if (!user) {
         return done(null, false, { message: 'invalid credentials' });
       }
-      // Ideally, you should hash and compare the password
-      if (user.password === password) {
-        return done(null, user);
-      } else {
-        return done(null, false, { message: 'invalid credentials' });
+      crypto.pbkdf2(password, user.salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
+        if (!crypto.timingSafeEqual(user.password, hashedPassword)) {
+          return done(null, false, { message: 'invalid credentials' });
       }
+      const token = jwt.sign(sanitizeUser(user), SECRET_KEY);
+      done(null, token); // this lines sends to serializer
+    }
+  );
     } catch (err) {
       return done(err);
     }
   }
 ));
+
+passport.use(
+  'jwt',
+  new JwtStrategy(opts, async function (jwt_payload, done) {
+    console.log({ jwt_payload });
+    try {
+      const user = await User.findOne({ id: jwt_payload.sub });
+      if (user) {
+        return done(null, sanitizeUser(user)); // this calls serializer
+      } else {
+        return done(null, false);
+      }
+    } catch (err) {
+      return done(err, false);
+    }
+  })
+);
 
 passport.serializeUser(function (user, cb) {
     console.log('serialize', user);
@@ -143,15 +121,15 @@ async function main() {
   console.log('database connected');
 }
 
-function isAuth() {
-    return function (req, res, next) {
-      if (req.user) {
-        next(); // Call next middleware
-      } else {
-        res.sendStatus(401); // Send 401 Unauthorized
-      }
-    };
-  }
+// function isAuth() {
+//     return function (req, res, next) {
+//       if (req.user) {
+//         next(); // Call next middleware
+//       } else {
+//         res.sendStatus(401); // Send 401 Unauthorized
+//       }
+//     };
+//   }
 
 server.listen(8080, () => {
   console.log('server started');
