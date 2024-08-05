@@ -28,7 +28,7 @@ exports.createUser = async (req, res) => {
               expires: new Date(Date.now() + 3600000),
               httpOnly: true,
             });
-            return res.status(201).json({ token });
+            return res.status(201).json({id:doc.id, role:doc.role});
           }
         });
       } catch (saveErr) {
@@ -42,30 +42,33 @@ exports.createUser = async (req, res) => {
 
 
 
-// exports.loginUser = async (req, res) => {
-//  res.json({status:'success'});
-//  res
-//  .cookie('jwt', req.user.token, {
-//    expires: new Date(Date.now() + 3600000),
-//    httpOnly: true,
-//  })
-//  .status(201)
-//  .json(req.user.token);
-//  console.log('User:', req.user);
- 
-//  res.json(req.user);
-//  };
 
+
+
+// exports.loginUser = async (req, res) => {
+//   res.cookie('jwt', req.user.token, {
+//     expires: new Date(Date.now() + 3600000),
+//     httpOnly: true,
+//   });
+//   return res.status(201).json(req.user.token);
+// };
 
 
 exports.loginUser = async (req, res) => {
-  res.cookie('jwt', req.user.token, {
-    expires: new Date(Date.now() + 3600000),
+  const token = jwt.sign(sanitizeUser(req.user), SECRET_KEY);
+  res.cookie('jwt', token, {
+    expires: new Date(Date.now() + 3600000), // 1 hour
     httpOnly: true,
   });
-  return res.status(201).json(req.user.token);
+  return res.status(201).json(req.user);
 };
 
-exports.checkUser =  (req, res) => {
-  res.json({status:'success',user: req.user})};
+// exports.checkUser =  (req, res) => {
+  // res.json({status:'success',user: req.user})};
 
+exports.checkAuth = async (req, res) => {
+  if(req.user){
+    res.json(req.user);
+  } else{
+    res.sendStatus(401);
+  }};

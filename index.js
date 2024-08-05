@@ -45,7 +45,9 @@ server.use(
   );
 server.use(passport.authenticate('session'));
 server.use(
-  cors({
+  cors({   
+     origin: 'http://localhost:3000', // Your frontend URL
+    credentials: true, // Allow credentials
     exposedHeaders: ['X-Total-Count'],
   })
 );
@@ -73,10 +75,11 @@ passport.use('local', new LocalStrategy({
       }
       crypto.pbkdf2(password, user.salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
         if (!crypto.timingSafeEqual(user.password, hashedPassword)) {
+          console.log('Error hashing password:', err);
           return done(null, false, { message: 'invalid credentials' });
       }
       const token = jwt.sign(sanitizeUser(user), SECRET_KEY);
-      done(null, {token}) // this lines sends to serializer
+      done(null, {id:user.id, role:user.role}) // this lines sends to serializer
     }
   );
     } catch (err) {
