@@ -3,6 +3,9 @@ const express = require('express');
 const server = express();
 const mongoose = require('mongoose');
 const cors = require('cors');
+const axios = require("axios");
+const bodyParser = require("body-parser");
+
 const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
@@ -11,6 +14,11 @@ const jwt = require('jsonwebtoken');
 const JwtStrategy = require('passport-jwt').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
 const cookieParser = require('cookie-parser');
+const path = require('path');
+
+// const paymentServiceUrl = 'http://localhost:8000';
+
+ require("dotenv").config();
 
 const { createProduct } = require('./controller/Product');
 const productsRouter = require('./routes/Products');
@@ -23,18 +31,21 @@ const ordersRouter = require('./routes/Order');
 
 const { User } = require('./model/User');
 const { isAuth, sanitizeUser, cookieExtractor } = require('./services/common');
-
+// const { clearCartForUser } = require('./controller/Cart');
 const SECRET_KEY = 'SECRET_KEY';
 // JWT options
 const opts = {};
 opts.jwtFromRequest = cookieExtractor;
 // opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
-opts.secretOrKey = SECRET_KEY; // TODO: should not be in code;
+opts.secretOrKey = SECRET_KEY; 
 
 //middlewares
 server.use(express.json());
-server.use(express.static('build'))
+server.use(express.raw({type: 'application/json'}));
+server.use(express.static(path.join(__dirname, 'build')));
+
 server.use(cookieParser());
+
 
 server.use(
     session({
@@ -53,6 +64,13 @@ server.use(
 );
 server.use(passport.initialize());
 server.use(passport.session());
+
+
+// server.use('/payment', (req, res) => {
+//   // Forward the request to the payment service
+//   const url = `${paymentServiceUrl}${req.url}`;
+//   req.pipe(request(url)).pipe(res);
+// });
 
 server.use('/products', isAuth(), productsRouter.router);
 server.use('/categories', isAuth(), categoriesRouter.router);
@@ -79,7 +97,7 @@ passport.use('local', new LocalStrategy({
           return done(null, false, { message: 'invalid credentials' });
       }
       const token = jwt.sign(sanitizeUser(user), SECRET_KEY);
-      done(null, {id:user.id, role:user.role}) // this lines sends to serializer
+      done(null, {id:user.id, role:user.role,token }) // this lines sends to serializer
     }
   );
     } catch (err) {
@@ -121,6 +139,138 @@ passport.deserializeUser(function (user, cb) {
     return cb(null, user);
   });
 });
+
+
+
+let salt_key = process.env.SALT_KEY
+let merchant_id = process.env.MERCHANT_ID
+
+// express.get("/", (req, res) => {
+//     res.send("server is running");
+// })
+
+server.post("/orde", async (req, res) => {
+    try {
+        console.log(req.body)
+        const merchantTransactionId = req.body.transactionId;
+        const data = {
+            merchantId: merchant_id,
+            merchantTransactionId: merchantTransactionId,
+            merchantUserId: req.body.MUID,
+            name: req.body.name,
+            amount: req.body.amount * 100,
+            redirectUrl: `http://localhost:8080/status/?id=${merchantTransactionId}`,
+            redirectMode: 'POST',
+            mobileNumber: req.body.number,
+            paymentInstrument: {
+                type: 'PAY_PAGE'
+            }
+        };
+
+
+        const payload = JSON.stringify(data);
+        const payloadMain = Buffer.from(payload).toString('base64');
+        const keyIndex = 1;
+        const string = payloadMain + '/pg/v1/pay' + salt_key;
+        const sha256 = crypto.createHash('sha256').update(string).digest('hex');
+        const checksum = sha256 + '###' + keyIndex;
+
+        // const prod_URL = "https://api.phonepe.com/apis/hermes/pg/v1/pay"
+        const prod_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay"
+
+        const options = {
+            method: 'POST',
+            url: prod_URL,
+            headers: {
+                accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-VERIFY': checksum
+            },
+            data: {
+                request: payloadMain
+            }
+        };
+
+
+        axios.request(options).then(function (response) {
+                console.log(response.data)
+
+                return res.json(response.data)
+            })
+            .catch(function (error) {
+                console.error(error);
+            });
+
+    } catch (error) {
+        res.status(500).send({
+            message: error.message,
+            success: false
+        })
+    }
+
+})
+
+
+server.post("/status", async (req, res) => {
+
+    const merchantTransactionId = req.query.id;
+    const merchantId = merchant_id
+
+    const keyIndex = 1;
+    const string = `/pg/v1/status/${merchantId}/${merchantTransactionId}` + salt_key;
+    const sha256 = crypto.createHash('sha256').update(string).digest('hex');
+    const checksum = sha256 + "###" + keyIndex;
+
+    const options = {
+        method: 'GET',
+        url: `https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/status/${merchantId}/${merchantTransactionId}`,
+        headers: {
+            accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-VERIFY': checksum,
+            'X-MERCHANT-ID': `${merchantId}`
+        }
+    };
+
+ 
+
+   // CHECK PAYMENT STATUS
+    axios.request(options).then(async (response) => {
+            if (response.data.success === true) {
+              //  const url = `http://localhost:3000/success`
+             // const url=  `http://localhost:3000/order-success/${currentOrder.id}`
+            // Adjust this according to your auth setup
+
+             // Clear the user's cart
+         
+             const url=  `http://localhost:3000/`  
+         
+           //  const url=  `http://localhost:8080/` 
+             return res.redirect(url)
+            } else {
+                const url = `http://localhost:8080/`
+                return res.redirect(url)
+            }
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 main().catch((err) => console.log(err));
 

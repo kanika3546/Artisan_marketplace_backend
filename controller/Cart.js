@@ -46,3 +46,16 @@ exports.updateCart = async (req, res) => {
     res.status(400).json(err);
   }
 };
+
+
+
+
+// // Function to clear the cart for a user
+// exports.clearCartForUser = async (id) => {
+//   try {
+//     // Delete all cart items associated with the user
+//     await Cart.deleteMany({ user: id });
+//   } catch (err) {
+//     console.error('Error clearing cart:', err);
+//   }
+// };
